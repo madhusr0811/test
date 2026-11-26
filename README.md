@@ -1,24 +1,37 @@
 # TestTranfer
 
-Self-hosted video delivery platform (Next.js + TypeScript + Tailwind). Built in stages.
+Self-hosted video delivery platform (Next.js + TypeScript + Tailwind + SQLite).
 
 ## Status
 
-| Stage | Scope | State |
-|---|---|---|
-| 1 | Project setup, design system, landing, login UI, admin dashboard UI | **UI done, not yet run/tested** |
-| 2 | SQLite, authentication, delivery management | Not started |
-| 3 | SSD storage, chunked + resumable uploads | Not started |
-| 4 | Private delivery pages, previews, downloads | Not started |
-| 5 | Download tracking, expiry, cleanup | Not started |
-| 6 | Security review, tests, Mac self-hosting guide | Not started |
+| Feature | State |
+|---|---|
+| Landing page, design system | Done |
+| Admin login (scrypt hashing, DB sessions, httpOnly SameSite=Strict cookie, 5-fails/15-min rate limit, Origin check on writes) | Written, **untested** |
+| Dashboard with real stats + storage figures | Written, **untested** |
+| Create / list / enable-disable / expiry / password / regenerate link / delete deliveries | Written, **untested** |
+| Chunked, resumable uploads to the storage folder (retry, pause, cancel, per-chunk SHA-256) | Written, **untested** |
+| Storage page (capacity, largest deliveries, SSD-missing warning) | Written, **untested** |
+| Private link `/d/<token>` | Placeholder only (file list, no downloads) |
+| Client download page, video preview, range-request downloads | **Not implemented** (Stage 4) |
+| Download tracking, background expiry cleanup | **Not implemented** (Stage 5) |
+| Settings page, Activity page, logo/colour settings, cover image | **Not implemented** |
 
-Not production-ready. The login is disabled, `/admin` is unprotected, and all dashboard data is sample data until Stage 2.
+Not production-ready. Do not expose to the internet until the upload/download paths have been tested and reviewed (Stage 6).
 
-## Run (Mac)
+## Run on a Mac
 
     npm install
-    npm run dev      # http://localhost:3000
-    npm run typecheck
+    cp .env.example .env     # set ADMIN_EMAIL, ADMIN_PASSWORD (12+ chars), STORAGE_PATH
+    npm run dev              # http://localhost:3000  -> /login
 
-Requires Node 20+. Copy `.env.example` to `.env` (used from Stage 2).
+For a production-style run: `npm run build && npm start` (listens on 127.0.0.1:3000; put a tunnel in front).
+`npm install` compiles `better-sqlite3`; if it fails, install Xcode command line tools (`xcode-select --install`).
+
+The storage folder's **parent** must exist (so an unmounted SSD is reported, never replaced by another folder).
+Uploads use the chunk size from `CHUNK_SIZE_MB`. Behind Cloudflare Tunnel keep chunks under 100 MB.
+
+## Limits to know
+- File integrity = exact size check + per-chunk SHA-256 (browser-sent where HTTPS/localhost allows, always server-computed). No whole-file hash yet.
+- Abandoned uploads are cleaned up when the next upload starts (48 h), not by a background job yet.
+- Deployments with no persistent disk (e.g. Render free tier) lose the database and files on restart.

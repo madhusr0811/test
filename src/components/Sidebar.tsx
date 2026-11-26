@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Send, UploadCloud, HardDrive, Activity, Settings, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Logo } from "./Logo";
 
 const items = [
@@ -17,6 +18,12 @@ const items = [
 export function Sidebar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1 px-3">
@@ -35,9 +42,9 @@ export function Sidebar() {
           </Link>
         );
       })}
-      <Link href="/login" className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-ink-dim hover:bg-surface2 hover:text-ink" title="Logout is wired up in Stage 2">
+      <button onClick={logout} className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-ink-dim hover:bg-surface2 hover:text-ink">
         <LogOut className="h-4 w-4" /> Logout
-      </Link>
+      </button>
     </nav>
   );
 

@@ -1,9 +1,12 @@
 "use client";
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Search, ArrowUpDown } from "lucide-react";
-import type { DeliveryRow, DeliveryStatus } from "@/lib/sample-data";
+import { Search, ArrowUpDown, Copy, Check } from "lucide-react";
+import type { DeliveryRow, DeliveryStatus } from "@/lib/deliveries";
+import { formatBytes, formatDate } from "@/lib/format";
 
-type SortKey = "client" | "created" | "files" | "sizeGB" | "downloads" | "expiry";
+type SortKey = "client" | "createdAt" | "fileCount" | "totalBytes" | "downloads" | "expiresAt";
+type Row = DeliveryRow & { link: string };
 
 const badge: Record<DeliveryStatus, string> = {
   active: "bg-emerald-500/10 text-emerald-400",
@@ -11,26 +14,24 @@ const badge: Record<DeliveryStatus, string> = {
   disabled: "bg-amber-500/10 text-amber-400",
 };
 
-const fmtDate = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const fmtSize = (gb: number) => (gb >= 1 ? `${gb.toFixed(1)} GB` : `${Math.round(gb * 1024)} MB`);
-
-export function DeliveriesTable({ rows, limit }: { rows: DeliveryRow[]; limit?: number }) {
+export function DeliveriesTable({ rows, limit }: { rows: Row[]; limit?: number }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | DeliveryStatus>("all");
-  const [sort, setSort] = useState<SortKey>("created");
+  const [sort, setSort] = useState<SortKey>("createdAt");
   const [dir, setDir] = useState<1 | -1>(-1);
+  const [copied, setCopied] = useState("");
 
   const data = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const filtered = rows.filter(
-      (r) => (status === "all" || r.status === status) && (!needle || `${r.client} ${r.event}`.toLowerCase().includes(needle)),
-    );
-    filtered.sort((a, b) => {
-      const x = a[sort], y = b[sort];
-      return (x < y ? -1 : x > y ? 1 : 0) * dir;
-    });
-    return limit ? filtered.slice(0, limit) : filtered;
+    const f = rows.filter((r) => (status === "all" || r.status === status) && (!needle || `${r.client} ${r.event} ${r.title}`.toLowerCase().includes(needle)));
+    f.sort((a, b) => (a[sort] < b[sort] ? -1 : a[sort] > b[sort] ? 1 : 0) * dir);
+    return limit ? f.slice(0, limit) : f;
   }, [rows, q, status, sort, dir, limit]);
+
+  async function copy(r: Row) {
+    try { await navigator.clipboard.writeText(r.link); setCopied(r.id); setTimeout(() => setCopied(""), 1500); }
+    catch { window.prompt("Copy this link", r.link); }
+  }
 
   const th = (key: SortKey, label: string) => (
     <th className="whitespace-nowrap px-4 py-3 font-medium">
@@ -59,12 +60,12 @@ export function DeliveriesTable({ rows, limit }: { rows: DeliveryRow[]; limit?: 
           <thead className="text-xs uppercase tracking-wider text-ink-dim">
             <tr className="border-b border-line">
               {th("client", "Client")}
-              <th className="px-4 py-3 font-medium">Event</th>
-              {th("created", "Created")}
-              {th("files", "Files")}
-              {th("sizeGB", "Size")}
+              <th className="px-4 py-3 font-medium">Event / project</th>
+              {th("createdAt", "Created")}
+              {th("fileCount", "Files")}
+              {th("totalBytes", "Size")}
               {th("downloads", "Downloads")}
-              {th("expiry", "Expiry")}
+              {th("expiresAt", "Expiry")}
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
@@ -73,18 +74,25 @@ export function DeliveriesTable({ rows, limit }: { rows: DeliveryRow[]; limit?: 
             {data.map((r) => (
               <tr key={r.id} className="border-b border-line/60 last:border-0 hover:bg-surface2/50">
                 <td className="whitespace-nowrap px-4 py-3 font-medium">{r.client}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{r.event}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{fmtDate(r.created)}</td>
-                <td className="px-4 py-3 text-ink-dim">{r.files}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{fmtSize(r.sizeGB)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{r.event || r.title}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{formatDate(r.createdAt)}</td>
+                <td className="px-4 py-3 text-ink-dim">{r.fileCount}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{formatBytes(r.totalBytes)}</td>
                 <td className="px-4 py-3 text-ink-dim">{r.downloads}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{fmtDate(r.expiry)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-ink-dim">{formatDate(r.expiresAt)}</td>
                 <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs capitalize ${badge[r.status]}`}>{r.status}</span></td>
-                <td className="px-4 py-3 text-xs text-ink-dim/60" title="Actions arrive in Stage 2">Stage 2</td>
+                <td className="whitespace-nowrap px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => copy(r)} className="inline-flex items-center gap-1 text-gold hover:text-gold-soft" aria-label="Copy delivery link">
+                      {copied === r.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                    <Link href={`/admin/deliveries/${r.id}`} className="text-gold hover:text-gold-soft">Manage</Link>
+                  </div>
+                </td>
               </tr>
             ))}
             {data.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-10 text-center text-ink-dim">No deliveries match.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-10 text-center text-ink-dim">No deliveries yet.</td></tr>
             )}
           </tbody>
         </table>

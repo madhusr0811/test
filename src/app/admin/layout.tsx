@@ -1,9 +1,12 @@
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
+import { getAdmin } from "@/lib/auth";
 
 export const metadata = { title: "Admin — TestTranfer" };
+export const dynamic = "force-dynamic";
 
-// NOTE: route protection is added in Stage 2 (middleware + session check).
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  if (!getAdmin()) redirect("/login");
   return (
     <div className="min-h-screen lg:flex">
       <Sidebar />
