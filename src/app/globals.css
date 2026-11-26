@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html { background: #0B0B0B; }
+body { @apply bg-bg text-ink font-sans antialiased; }
+::selection { background: #D6AD6840; }
+
+@layer components {
+  .btn-gold { @apply inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-5 py-2.5 text-sm font-medium text-black transition-colors hover:bg-gold-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold; }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line px-5 py-2.5 text-sm text-ink transition-colors hover:border-gold/60 hover:text-gold-soft; }
+  .card { @apply rounded-xl border border-line bg-surface; }
+  .input { @apply w-full rounded-lg border border-line bg-surface2 px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-dim/60 outline-none transition-colors focus:border-gold; }
+  .label { @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink-dim; }
+}
